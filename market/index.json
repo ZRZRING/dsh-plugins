@@ -1,0 +1,107 @@
+{
+  "format": 1,
+  "title": {
+    "en": "ZRZRING DSH Plugins",
+    "zh": "ZRZRING 的 DSH 插件"
+  },
+  "description": {
+    "en": "Bundles maintained by ZRZRING for DeepSeek Harness.",
+    "zh": "ZRZRING 维护的 DeepSeek Harness 组合包。"
+  },
+  "metadata": {
+    "categories": {
+      "notifications": {
+        "title": {
+          "en": "Notifications",
+          "zh": "通知"
+        }
+      },
+      "ui": {
+        "title": {
+          "en": "Interface",
+          "zh": "界面"
+        }
+      },
+      "tools": {
+        "title": {
+          "en": "Tools",
+          "zh": "工具"
+        }
+      }
+    },
+    "labels": {
+      "windows": {
+        "title": {
+          "en": "Windows",
+          "zh": "Windows"
+        }
+      },
+      "beta": {
+        "title": {
+          "en": "Beta",
+          "zh": "测试版"
+        }
+      }
+    },
+    "sortKeys": {
+      "stars": {
+        "title": {
+          "en": "Stars",
+          "zh": "星标"
+        },
+        "order": "desc"
+      }
+    }
+  },
+  "plugins": [
+    {
+      "name": "@local/dsh-desktop-notifications",
+      "title": {
+        "en": "Desktop notifications",
+        "zh": "桌面通知"
+      },
+      "description": {
+        "en": "One native Windows toast when a task completes, fails, or waits for your confirmation. Copy and switches live in config.json and are re-read on every trigger.",
+        "zh": "任务完成、失败或等待确认时弹一条 Windows 系统通知。开关与文案都在 config.json，每次触发重新读取，改完即生效。"
+      },
+      "icon": "../packages/dsh-desktop-notifications/icon.svg",
+      "author": "zrzring",
+      "homepage": "https://github.com/ZRZRING/dsh-plugins/tree/main/packages/dsh-desktop-notifications#readme",
+      "repository": {
+        "url": "https://github.com/ZRZRING/dsh-plugins",
+        "directory": "packages/dsh-desktop-notifications"
+      },
+      "metadata": {
+        "category": "notifications",
+        "keywords": [
+          "notification",
+          "toast",
+          "windows",
+          "desktop",
+          "attention"
+        ],
+        "labels": [
+          "windows"
+        ],
+        "sortKeys": {
+          "stars": 0
+        }
+      },
+      "versions": [
+        {
+          "version": "1.0.6",
+          "publishTimestamp": 1792348200,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/ZRZRING/dsh-plugins",
+            "commit": "cb5b745146c22846e5733379910ab312bb32d897",
+            "path": "packages/dsh-desktop-notifications"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.1 <0.3.0"
+          }
+        }
+      ]
+    }
+  ]
+}
