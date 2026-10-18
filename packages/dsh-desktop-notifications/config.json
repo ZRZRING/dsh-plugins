@@ -1,0 +1,45 @@
+{
+  "_readme": "Edit this file to change the notification switches and copy. It is re-read on every trigger, so no reinstall and no app restart is needed. Strict JSON only: no comments, no trailing commas. Placeholders: {subject} = project/session name, {detail} = question, approval reason, or error message.",
+  "settings": {
+    "_mode": "'always' notifies on every trigger; 'off' disables the plugin.",
+    "mode": "always",
+    "_sound": "'none' keeps it silent; 'ding' plays C:\\Windows\\Media\\ding.wav; 'system' plays your Windows sound scheme.",
+    "sound": "none",
+    "soundFile": "",
+    "_aumid": "Toast identity. Windows shows this app name above the notification text.",
+    "aumid": "Microsoft.Windows.PowerShell",
+    "_triggers": "Which situations notify.",
+    "onComplete": true,
+    "onFailure": true,
+    "onWaiting": true,
+    "_locale": "'zh' or 'en'; picks the message set below.",
+    "locale": "zh",
+    "_debug": "debugLog appends every decision to %TEMP%\\dsh-desktop-notifications.log; debugEvents also logs every received trigger event.",
+    "debugLog": true,
+    "debugEvents": false,
+    "_announceOnStart": "true fires one notification while the plugin activates — handy as a smoke test.",
+    "announceOnStart": false
+  },
+  "messages": {
+    "zh": {
+      "readyTitle": "DSH · 桌面通知已就绪",
+      "readyBody": "蓝色大鲸鱼正在等待你的大白饭",
+      "completeTitle": "DSH · 任务完成",
+      "completeBody": "{subject} 已完成",
+      "failureTitle": "DSH · 任务失败",
+      "failureBody": "{subject} 出错：{detail}",
+      "waitingTitle": "DSH · 等待你的确认",
+      "waitingBody": "{subject} 正在等待：{detail}"
+    },
+    "en": {
+      "readyTitle": "DSH · Desktop notifications ready",
+      "readyBody": "Deepseek is waiting for your food",
+      "completeTitle": "DSH · Task finished",
+      "completeBody": "{subject} finished",
+      "failureTitle": "DSH · Task failed",
+      "failureBody": "{subject} failed: {detail}",
+      "waitingTitle": "DSH · Waiting for you",
+      "waitingBody": "{subject} is waiting: {detail}"
+    }
+  }
+}

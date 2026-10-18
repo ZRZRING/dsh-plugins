@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Desktop Notifications",
+    "description": "Shows a native desktop notification and plays one sound when a task finishes, fails, or waits for your confirmation."
+  }
+}

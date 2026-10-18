@@ -1,0 +1,55 @@
+{
+  "$comment": "市场索引的唯一事实来源。改插件元数据、加插件、发版后跑 `npm run pin`（首次或插件变动时）再跑 `npm run build`。",
+  "index": {
+    "url": "https://raw.githubusercontent.com/ZRZRING/dsh-plugins/main/market/index.json",
+    "title": { "en": "ZRZRING DSH Plugins", "zh": "ZRZRING 的 DSH 插件" },
+    "description": {
+      "en": "Bundles maintained by ZRZRING for DeepSeek Harness.",
+      "zh": "ZRZRING 维护的 DeepSeek Harness 组合包。"
+    }
+  },
+  "metadata": {
+    "categories": {
+      "notifications": { "title": { "en": "Notifications", "zh": "通知" } },
+      "ui": { "title": { "en": "Interface", "zh": "界面" } },
+      "tools": { "title": { "en": "Tools", "zh": "工具" } }
+    },
+    "labels": {
+      "windows": { "title": { "en": "Windows", "zh": "Windows" } },
+      "beta": { "title": { "en": "Beta", "zh": "测试版" } }
+    },
+    "sortKeys": {
+      "stars": { "title": { "en": "Stars", "zh": "星标" }, "order": "desc" }
+    }
+  },
+  "defaults": {
+    "dshRange": ">=0.2.1-rc.1 <0.3.0"
+  },
+  "plugins": [
+    {
+      "dir": "../packages/dsh-desktop-notifications",
+      "title": { "en": "Desktop notifications", "zh": "桌面通知" },
+      "description": {
+        "en": "One native Windows toast when a task completes, fails, or waits for your confirmation. Copy and switches live in config.json and are re-read on every trigger.",
+        "zh": "任务完成、失败或等待确认时弹一条 Windows 系统通知。开关与文案都在 config.json，每次触发重新读取，改完即生效。"
+      },
+      "icon": "../packages/dsh-desktop-notifications/icon.svg",
+      "author": "zrzring",
+      "homepage": "https://github.com/ZRZRING/dsh-plugins/tree/main/packages/dsh-desktop-notifications#readme",
+      "repository": {
+        "url": "https://github.com/ZRZRING/dsh-plugins",
+        "directory": "packages/dsh-desktop-notifications"
+      },
+      "category": "notifications",
+      "keywords": ["notification", "toast", "windows", "desktop", "attention"],
+      "labels": ["windows"],
+      "sortKeys": { "stars": 0 },
+      "source": {
+        "type": "git",
+        "url": "https://github.com/ZRZRING/dsh-plugins",
+        "commit": "HEAD",
+        "path": "packages/dsh-desktop-notifications"
+      }
+    }
+  ]
+}

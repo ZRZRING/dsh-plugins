@@ -1,0 +1,35 @@
+{
+  "name": "@local/dsh-desktop-notifications",
+  "version": "1.0.6",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "dsh": ">=0.2.1-rc.1 <0.3.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZRZRING/dsh-plugins.git",
+    "directory": "packages/dsh-desktop-notifications"
+  },
+  "keywords": ["dsh-plugin", "dsh-bundle", "notification", "windows"],
+  "exports": {
+    ".": "./index.js",
+    "./config.json": "./config.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "config.json",
+    "README.md",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

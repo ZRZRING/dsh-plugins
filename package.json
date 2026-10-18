@@ -1,0 +1,14 @@
+{
+  "name": "dsh-plugins",
+  "private": true,
+  "type": "module",
+  "description": "ZRZRING's DeepSeek Harness plugins and the self-hosted market index.",
+  "scripts": {
+    "build": "node market/build-index.mjs",
+    "pin": "node market/build-index.mjs --pin",
+    "check": "node market/build-index.mjs --check"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-plugin-market-index": "0.2.1-rc.2"
+  }
+}
