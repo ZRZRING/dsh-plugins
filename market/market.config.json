@@ -1,7 +1,7 @@
 {
   "$comment": "市场索引的唯一事实来源。改插件元数据、加插件、发版后跑 `npm run pin`（首次或插件变动时）再跑 `npm run build`。",
   "index": {
-    "url": "https://raw.githubusercontent.com/ZRZRING/dsh-plugins/main/market/index.json",
+    "url": "https://zrzring.github.io/dsh-plugins/market/index.json",
     "title": {
       "en": "ZRZRING DSH Plugins",
       "zh": "ZRZRING 的 DSH 插件"
