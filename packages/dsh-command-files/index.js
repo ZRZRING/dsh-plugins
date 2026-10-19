@@ -463,4 +463,14 @@ export function apply(ctx, config = {}) {
   } catch (error) {
     log(`ready-failed detail=${error instanceof Error ? error.message : String(error)}`);
   }
+
+  // The registry validates candidates lazily, on the first catalog read. One
+  // list proves the shapes are accepted; a rejection here means the `/` menu
+  // would silently come up empty.
+  setTimeout(() => {
+    Promise.resolve()
+      .then(() => ctx.skills.list({}))
+      .then(skills => log(`catalog count=${skills.length} names=${skills.map(skill => `/${skill.name}`).join(',') || '(none)'}`))
+      .catch(error => log(`catalog-failed detail=${error instanceof Error ? error.message : String(error)}`));
+  }, 0).unref?.();
 }
