@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Edit & continue",
+    "description": "Edit a sent prompt inline and resend it in a new branch, and continue a stopped or truncated turn from a triangle button."
+  }
+}

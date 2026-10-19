@@ -1,0 +1,9 @@
+# Edit/continue bundle.
+#
+# The Host row exists only to publish this package's Client entry: the whole
+# feature is the browser-side slot registration in client.js. There is no
+# runtime configuration to tune.
+- insert:
+    - id: edit-continue
+      name: '@local/dsh-edit-continue'
+      config: {}

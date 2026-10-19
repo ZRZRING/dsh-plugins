@@ -6,6 +6,7 @@ ZRZRING 的 DeepSeek Harness 插件仓库，同时自托管一个 DSH 插件市�
 |---|---|
 | 组合包 | [`packages/dsh-desktop-notifications`](packages/dsh-desktop-notifications) — 任务完成/失败/等待确认时弹 Windows 系统通知 |
 | 组合包 | [`packages/dsh-command-files`](packages/dsh-command-files) — 把 `~/.agents/commands/*.md` 变成只主动调用的斜杠命令，调用时注入全文 |
+| 组合包 | [`packages/dsh-edit-continue`](packages/dsh-edit-continue) — 已发送的消息可就地编辑并作为新分支重发；被停止/中断/截断的一轮多一个三角形「继续生成」按钮 |
 | 市场索引 | [market/index.json](market/index.json) |
 | 索引直链 | `https://zrzring.github.io/dsh-plugins/market/index.json` |
 
@@ -20,7 +21,7 @@ ZRZRING 的 DeepSeek Harness 插件仓库，同时自托管一个 DSH 插件市�
 ## 装到 DSH
 
 **从市场索引装**（推荐，先按 [DSH 插件市场说明](https://github.com/ZRZRING/dsh-plugins) 在插件页启用"自定义插件市场"）：
-在**插件 → 发现**里添加上面的索引直链，然后安装 `Desktop notifications`。
+在**插件 → 发现**里添加上面的索引直链，然后安装列表里的组合包（`Desktop notifications`、`Edit and continue` 等）。
 
 **直接按 spec 装**（索引里 `install` 字段给出的就是这一串，commit 以最新索引为准）：
 

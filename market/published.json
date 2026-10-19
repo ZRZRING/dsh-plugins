@@ -1,4 +1,5 @@
 {
   "$comment": "发布账本：\"包名@版本\": Unix 秒。这个时间只是市场的声明（索引未签名），用于排序与展示；每次发版补一行，缺失时 --check 会失败。",
-  "@local/dsh-desktop-notifications@1.0.6": 1792348200
+  "@local/dsh-desktop-notifications@1.0.6": 1792348200,
+  "@local/dsh-edit-continue@1.0.0": 1792420351
 }

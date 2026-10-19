@@ -1,0 +1,50 @@
+{
+  "name": "@local/dsh-edit-continue",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Edit a sent prompt and resend it in a new branch, plus a triangle Continue button that resumes a stopped or truncated turn.",
+  "engines": {
+    "dsh": ">=0.2.1-rc.1 <0.3.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZRZRING/dsh-plugins.git",
+    "directory": "packages/dsh-edit-continue"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "dsh-bundle",
+    "edit-message",
+    "continue",
+    "chat"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-chat"
+      ]
+    }
+  }
+}
