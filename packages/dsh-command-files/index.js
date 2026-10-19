@@ -50,6 +50,8 @@ const DEFAULTS = {
   maxBytes: 262144,
   descriptionMaxLength: 120,
   wrap: true,
+  /** `false` queues the body for the next prompt; `true` sends it as a new turn. */
+  immediate: false,
   locale: 'zh',
   debugLog: true,
 };
@@ -57,7 +59,8 @@ const DEFAULTS = {
 /** Built-in copy; `messages` in `config.json` may override it key by key. */
 const BUILTIN_MESSAGES = {
   zh: {
-    loaded: (name, chars) => `已注入 /${name}（${chars} 字）`,
+    loaded: (name, chars) => `已注入 /${name}（${chars} 字）。`,
+    queued: (name, chars) => `已注入 /${name}（${chars} 字），会随你下一条消息一起发出；现在可以继续补充要求。`,
     empty: name => `/${name} 对应的 Markdown 文件是空的。`,
     missing: name => `/${name} 对应的 Markdown 文件已不存在。`,
     tooLarge: (name, limit) => `/${name} 的文件超过 ${limit} 字节上限，未注入。`,
@@ -66,6 +69,7 @@ const BUILTIN_MESSAGES = {
   },
   en: {
     loaded: (name, chars) => `Injected /${name} (${chars} chars)`,
+    queued: (name, chars) => `Injected /${name} (${chars} chars); it will be sent with your next message, so you can keep typing.`,
     empty: name => `The Markdown file for /${name} is empty.`,
     missing: name => `The Markdown file for /${name} no longer exists.`,
     tooLarge: (name, limit) => `The file for /${name} exceeds ${limit} bytes and was not injected.`,
@@ -376,6 +380,8 @@ export function apply(ctx, config = {}) {
       text: extra === '' ? rendered : `${rendered}\n\n${extra}`,
       chars: loaded.text.length,
       messages,
+      /** `false` queues the body for the user's next prompt; `true` starts a turn now. */
+      immediate: options.immediate === true,
     };
   };
 
@@ -406,9 +412,19 @@ export function apply(ctx, config = {}) {
           handler: ({ agent, rawInput }) => {
             const invocation = prepare(name, rawInput);
             if (invocation.error !== undefined) return { kind: 'error', text: invocation.error };
-            agent.followup(commandMessage(name, invocation.text));
-            log(`inject path=menu name=/${name} file=${entry.path} chars=${invocation.chars} extra=${String(rawInput ?? '').trim().length}`);
-            return { kind: 'success', text: invocation.messages.loaded(name, invocation.chars) };
+            const message = commandMessage(name, invocation.text);
+            // Queue by default: `inject` adds model-facing context without waking
+            // the driver, so the body rides along with the next prompt the user
+            // sends and they can keep typing first. `immediate` sends it now.
+            if (invocation.immediate) agent.followup(message);
+            else agent.inject(message);
+            log(`inject path=menu name=/${name} mode=${invocation.immediate ? 'send' : 'queue'} file=${entry.path} chars=${invocation.chars} extra=${String(rawInput ?? '').trim().length}`);
+            return {
+              kind: 'success',
+              text: invocation.immediate
+                ? invocation.messages.loaded(name, invocation.chars)
+                : invocation.messages.queued(name, invocation.chars),
+            };
           },
         });
         registered.set(name, { name, path: entry.path, description: entry.description, dispose });

@@ -26,6 +26,9 @@
         descriptionMaxLength: 120
         # Wrap the body in <command_content>; false injects the raw file text.
         wrap: true
+        # false queues the body for your next prompt (keep typing first);
+        # true sends it immediately as a new turn.
+        immediate: false
         # Result text language: 'zh' or 'en'.
         locale: zh
         # Append one diagnostic line per scan/injection to

@@ -45,8 +45,9 @@
   git/commit.md   → /git-commit   （子目录用 - 连接）
 ```
 
-- `/handoff` 回车：注册好的 host 命令直接执行，文件全文作为一条 user 消息发给模型，开始新一轮。
-- `/handoff 重点写测试部分`：这一行会作为普通 prompt 发出，插件在 `agent/pre-step` 里识别 `/handoff` token，把全文作为该步的注入指令追加进去（和 skills 的 `/name` 手势一致）。
+- `/handoff` 回车：**只注入，不立刻发**。文件全文进入当前 inbox（`agent.inject`，不唤醒 driver），你可以在输入框继续补要求，按回车发出时两段内容一起带上——和 skills 的 `/name` 手势是同一个感觉。
+- `/handoff 重点写测试部分`：这一行会作为普通 prompt 发出，插件在 `agent/pre-step` 里识别 `/handoff` token，把全文作为该步的注入指令追加进去。
+- 想让它一执行就立刻开新一轮（不需要再打字），把 `immediate` 设为 `true`。
 - `/` 菜单里能看到每个命令，描述取自文件第一行（`# 标题` 会去掉 `#`），所以第一行写成一句人能看懂的话最合适。
 
 ### 文件写法
@@ -80,6 +81,7 @@
 | `maxBytes` | `262144` | 单文件上限，超过则拒绝注入 |
 | `descriptionMaxLength` | `120` | 菜单描述长度上限 |
 | `wrap` | `true` | 是否用 `<command_content>` 包裹正文 |
+| `immediate` | `false` | `false` 只入队（随下一条消息发出，期间可继续输入）；`true` 立即开新一轮 |
 | `locale` | `zh` | 命令结果提示语言 |
 | `debugLog` | `true` | 写 `%TEMP%\dsh-command-files.log` |
 
@@ -100,7 +102,7 @@
   </command_content>
   ```
 
-- **两条路径**：菜单/回车执行走命令 handler（`agent.followup`，会开新一轮）；带参数的行走 pre-step 注入（落在同一轮最靠后的位置）。两条路径不会同时触发，因为命令执行时那一行根本不会变成 prompt。
+- **两条路径**：菜单/回车执行走命令 handler（默认 `agent.inject` 入队，随你下一条消息一起发出；`immediate: true` 时改用 `agent.followup` 立即开新一轮）；带参数的行走 pre-step 注入（落在同一轮最靠后的位置）。两条路径不会同时触发，因为命令执行时那一行根本不会变成 prompt。
 - **热更新**：`fs.watch` 监听目录（目录不存在时监听最近的已存在祖先），150ms 防抖后重扫；`commands/change` 会让 Web 端的 `/` 目录缓存失效。
 - **失败行为**：文件缺失、为空、超限或读取失败时，命令返回 error 结果，草稿和附件不会被吞掉。
 

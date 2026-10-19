@@ -14,6 +14,8 @@
     "descriptionMaxLength": 120,
     "_wrap": "true 用 <command_content> 包裹正文（便于模型识别来源、解析相对路径）；false 直接注入原文。",
     "wrap": true,
+    "_immediate": "false（默认）只入队，正文随你的下一条消息一起发出，期间可以继续补要求；true 表示命令一执行就立刻开新一轮。",
+    "immediate": false,
     "_locale": "'zh' 或 'en'，决定命令结果提示的语言。",
     "locale": "zh",
     "_debug": "debugLog 会把每次扫描与注入记到 %TEMP%\\dsh-command-files.log。",
