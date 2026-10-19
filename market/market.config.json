@@ -97,6 +97,42 @@
         "commit": "cb5b745146c22846e5733379910ab312bb32d897",
         "path": "packages/dsh-desktop-notifications"
       }
+    },
+    {
+      "dir": "../packages/dsh-edit-continue",
+      "title": {
+        "en": "Edit and continue",
+        "zh": "编辑与继续"
+      },
+      "description": {
+        "en": "Edit a prompt you already sent and resend it as a new branch, plus a triangle button that resumes a turn which was stopped, interrupted, or cut off by the token limit. The continue instruction stays out of the message list.",
+        "zh": "已发送的消息可以就地编辑并作为新分支重发；一轮被停止、中断或被 token 上限截断时，发送键旁多一个三角形继续按钮。继续指令只发给模型，不出现在消息列表里。"
+      },
+      "icon": "../packages/dsh-edit-continue/icon.svg",
+      "author": "zrzring",
+      "homepage": "https://github.com/ZRZRING/dsh-plugins/tree/main/packages/dsh-edit-continue#readme",
+      "repository": {
+        "url": "https://github.com/ZRZRING/dsh-plugins",
+        "directory": "packages/dsh-edit-continue"
+      },
+      "category": "ui",
+      "keywords": [
+        "edit",
+        "resend",
+        "branch",
+        "continue",
+        "chat"
+      ],
+      "labels": [],
+      "sortKeys": {
+        "stars": 0
+      },
+      "source": {
+        "type": "git",
+        "url": "https://github.com/ZRZRING/dsh-plugins",
+        "commit": "95c14619277cf449ac2576ccfd978b4984557ed3",
+        "path": "packages/dsh-edit-continue"
+      }
     }
   ]
 }
