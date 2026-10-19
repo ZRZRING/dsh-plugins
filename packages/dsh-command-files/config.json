@@ -1,26 +1,20 @@
 {
-  "_readme": "编辑本文件可调整斜杠命令目录与行为；插件每次扫描或调用都会重新读取，改完即生效，不用重装、不用重启。严格 JSON：不要注释、不要尾逗号。",
+  "_readme": "编辑本文件可调整斜杠命令目录与行为；插件每次展开 / 菜单或注入正文时都会重新读取，改完即生效，不用重装、不用重启。严格 JSON：不要注释、不要尾逗号。",
   "settings": {
-    "_enabled": "false 会注销所有命令（插件仍在，只是不注册）。",
+    "_enabled": "false 会让 / 菜单里不再出现这些命令（插件仍在，只是不提供）。",
     "enabled": true,
     "_dirs": "额外的命令目录，绝对路径或 ~ 开头；留空则只用默认的 ~/.agents/commands 与 ~/.agents/command。",
     "dirs": [],
     "includeDefaults": true,
-    "_watch": "监听目录变化，新增/删除/改标题都会即时刷新 / 菜单。",
+    "_watch": "监听目录变化，新增/删除/改标题都会刷新 / 菜单。",
     "watch": true,
-    "_maxBytes": "单个文件超过这个字节数时拒绝注入，避免一次塞爆上下文。",
+    "_maxBytes": "单个文件超过这个字节数时拒绝加载，避免一次塞爆上下文。",
     "maxBytes": 262144,
     "_descriptionMaxLength": "/ 菜单里描述的最大字符数。",
     "descriptionMaxLength": 120,
-    "_wrap": "true 用 <command_content> 包裹正文（便于模型识别来源、解析相对路径）；false 直接注入原文。",
-    "wrap": true,
-    "_immediate": "false（默认）只入队，正文随你的下一条消息一起发出，期间可以继续补要求；true 表示命令一执行就立刻开新一轮。",
-    "immediate": false,
-    "_undoCommand": "撤回命令名。发送前执行：把挂起的注入从 inbox 移除（对话里不留痕迹）；已经发送后执行：从模型上下文里 shadow 掉（对话记录仍保留）。留空则不注册。",
-    "undoCommand": "uninject",
-    "_locale": "'zh' 或 'en'，决定命令结果提示的语言。",
+    "_locale": "'zh' 或 'en'，决定描述兜底文案的语言。",
     "locale": "zh",
-    "_debug": "debugLog 会把每次扫描与注入记到 %TEMP%\\dsh-command-files.log。",
+    "_debug": "debugLog 会把每次扫描与加载记到 %TEMP%\\dsh-command-files.log。",
     "debugLog": true
   }
 }

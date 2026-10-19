@@ -1,25 +1,27 @@
 /**
- * Slash commands backed by Markdown files.
+ * Slash commands backed by Markdown files, delivered through the skill
+ * pipeline so they behave exactly like a skill in the composer.
  *
- * Each `*.md` file under the configured roots becomes a host slash command
- * named after the file: `~/.agents/commands/handoff.md` is `/handoff`. Unlike a
- * skill, nothing is discovered passively — there is no catalog, no YAML
- * frontmatter, and no model-facing tool. The file is only read when the user
- * explicitly invokes the command, and then its full text is injected into the
- * user prompt.
+ * Every `*.md` file under the configured roots becomes a user-invocable skill
+ * named after the file: `~/.agents/commands/handoff.md` is `/handoff`. Nothing
+ * is discovered passively — the catalog never lists these entries to the model
+ * (`modelInvocable: false`), there is no YAML frontmatter to write, and no
+ * model-facing tool. The body is only read when the user explicitly types or
+ * picks `/name`.
  *
- * Two invocation paths share the same body:
- * - a bare `/handoff` executes the registered host command, whose handler
- *   queues the file as one user message (`agent.followup`), and
- * - a `/handoff <extra>` line (or `/handoff` inside a longer prompt) is sent as
- *   ordinary prompt text, and this plugin's `agent/pre-step` listener appends
- *   the same rendering as injected instructions for that step.
+ * Why the skill pipeline instead of a host command: a command executes the
+ * moment the line is claimed, so its output is committed before the user can
+ * reconsider. A skill pick only lands the literal `/name ` text in the
+ * composer. The user keeps typing, sends one message, deletes the token to
+ * cancel, and the host's own `agent/pre-step` boundary turns the gesture into
+ * `<skill_content>` exactly once, at send time. Withdrawal therefore needs no
+ * extra command: backspace is the withdrawal.
  *
- * Files are re-scanned on directory events, so adding, removing, or editing a
- * command refreshes the `/` menu without a restart. Every decision is appended
- * to `%TEMP%\dsh-command-files.log`.
+ * Files are re-scanned on directory events and the provider invalidates its
+ * catalog, so adding, removing, or editing a command refreshes the `/` menu
+ * without a restart. Every decision is appended to
+ * `%TEMP%\dsh-command-files.log`.
  */
-import { randomUUID } from 'node:crypto';
 import { appendFileSync, existsSync, readFileSync, readdirSync, statSync, watch } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, extname, join, resolve } from 'node:path';
@@ -28,17 +30,24 @@ import { fileURLToPath } from 'node:url';
 /** Cordis plugin name. */
 export const name = 'command-files';
 
-/** The host slash-command registry is the only required service. */
-export const inject = ['commands'];
+/** The skill registry is the only required service. */
+export const inject = ['skills'];
 
 /** This package directory, where `config.json` lives by default. */
 const PACKAGE_DIR = dirname(fileURLToPath(import.meta.url));
 
-/** Host command names: lowercase letter, then letters, digits, `_` or `-`. */
-const COMMAND_NAME = /^[a-z][a-z0-9_-]*$/u;
+/** Provider label shown in discovery metadata and the debug log. */
+const PROVIDER = 'command-files';
 
-/** `/name` gesture inside claimed user text, whitespace-bounded. */
-const GESTURE = /(^|\s)\/([a-z][a-z0-9_-]*)(?=[\s]|$)/gu;
+/**
+ * Duplicate-name priority inside one registry layer: lower wins. Real skills
+ * occupy 100-600 (project through bundled), so 700 keeps a user's skill in
+ * front of a command file that happens to share its name.
+ */
+const RANK = 700;
+
+/** Skill names: kebab-case, the shape the `/name` gesture grammar accepts. */
+const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 /** Shipped defaults; the row config and `config.json` override them. */
 const DEFAULTS = {
@@ -49,11 +58,6 @@ const DEFAULTS = {
   watch: true,
   maxBytes: 262144,
   descriptionMaxLength: 120,
-  wrap: true,
-  /** `false` queues the body for the next prompt; `true` sends it as a new turn. */
-  immediate: false,
-  /** Slash command that withdraws the last injection; empty registers none. */
-  undoCommand: 'uninject',
   locale: 'zh',
   debugLog: true,
 };
@@ -61,31 +65,9 @@ const DEFAULTS = {
 /** Built-in copy; `messages` in `config.json` may override it key by key. */
 const BUILTIN_MESSAGES = {
   zh: {
-    loaded: (name, chars) => `已注入 /${name}（${chars} 字）。`,
-    queued: (name, chars) => `已注入 /${name}（${chars} 字），会随你下一条消息一起发出；发送前可用 /uninject 撤回。`,
-    withdrawnPending: name => `已撤回 /${name}（还没发送，对话里不会留下内容）。`,
-    withdrawnSent: name => `已从模型上下文撤回 /${name}；原始内容仍保留在对话记录里（日志只增不删），后续请求不再包含它。`,
-    withdrawNone: () => '没有可撤回的注入。',
-    withdrawnMarker: name => `[已撤回 /${name}]`,
-    undoDescription: '撤回上一次 /命令注入（发送前移除；已发送则从模型上下文撤回）',
-    empty: name => `/${name} 对应的 Markdown 文件是空的。`,
-    missing: name => `/${name} 对应的 Markdown 文件已不存在。`,
-    tooLarge: (name, limit) => `/${name} 的文件超过 ${limit} 字节上限，未注入。`,
-    unreadable: (name, detail) => `读取 /${name} 失败：${detail}`,
     descriptionFallback: name => `自定义命令文件（/${name}）`,
   },
   en: {
-    loaded: (name, chars) => `Injected /${name} (${chars} chars)`,
-    queued: (name, chars) => `Injected /${name} (${chars} chars); it will be sent with your next message. Use /uninject before sending to withdraw it.`,
-    withdrawnPending: name => `Withdrew /${name} (not sent yet, so nothing is left in the conversation).`,
-    withdrawnSent: name => `Withdrew /${name} from the model context; the original stays in the conversation log (append-only) and later requests no longer include it.`,
-    withdrawNone: () => 'There is no injection to withdraw.',
-    withdrawnMarker: name => `[withdrawn /${name}]`,
-    undoDescription: 'Withdraw the last slash-command injection (remove it before sending, or shadow it from the model context)',
-    empty: name => `The Markdown file for /${name} is empty.`,
-    missing: name => `The Markdown file for /${name} no longer exists.`,
-    tooLarge: (name, limit) => `The file for /${name} exceeds ${limit} bytes and was not injected.`,
-    unreadable: (name, detail) => `Could not read /${name}: ${detail}`,
     descriptionFallback: name => `Command file on disk (/${name})`,
   },
 };
@@ -112,7 +94,7 @@ function makeLogger(enabled) {
     try {
       appendFileSync(path, `${new Date().toISOString()} ${line}\n`, 'utf8');
     } catch {
-      /* logging must never break a command */
+      /* logging must never break discovery */
     }
   };
 }
@@ -121,16 +103,6 @@ function makeLogger(enabled) {
 function clip(text, max) {
   const flat = text.replace(/\s+/gu, ' ').trim();
   return flat.length <= max ? flat : `${flat.slice(0, Math.max(1, max - 1))}…`;
-}
-
-/** Escape a value used inside an element attribute. */
-function escapeAttr(value) {
-  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
-}
-
-/** Escape model-facing prose embedded inside the framing tags. */
-function escapeText(value) {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 /**
@@ -160,11 +132,11 @@ function deriveDescription(text, fallback, maxLength) {
 }
 
 /**
- * Normalize a relative Markdown file name into a host command name. Separators
- * inside nested directories and whitespace runs become `-`; anything outside
- * the host grammar is rejected rather than silently renamed.
+ * Normalize a relative Markdown file name into a skill name. Separators inside
+ * nested directories and whitespace runs become `-`; anything outside the
+ * `/name` gesture grammar is rejected rather than silently renamed.
  */
-function toCommandName(stem) {
+function toSkillName(stem) {
   const normalized = stem
     .toLowerCase()
     .replace(/[\\/]+/gu, '-')
@@ -172,7 +144,7 @@ function toCommandName(stem) {
     .replace(/[^a-z0-9-]+/gu, '-')
     .replace(/-+/gu, '-')
     .replace(/^-+|-+$/gu, '');
-  return COMMAND_NAME.test(normalized) ? normalized : undefined;
+  return SKILL_NAME.test(normalized) ? normalized : undefined;
 }
 
 /** Recursively list `.md` files; nested directories join with `-` in the name. */
@@ -219,35 +191,9 @@ function readCommandFile(path, maxBytes) {
   }
 }
 
-/** Render one command body for the model, with its base directory for relative paths. */
-function renderBlock(name, path, body) {
-  return [
-    `<command_content name="${escapeAttr(name)}">`,
-    '<command_resources>',
-    `Base directory for this command: ${escapeText(dirname(path))}`,
-    'Resolve relative paths mentioned by this command against the base directory before using them.',
-    '</command_resources>',
-    '',
-    '<command_instructions>',
-    body,
-    '</command_instructions>',
-    '</command_content>',
-  ].join('\n');
-}
-
-/** Build one user-role message carrying injected command text. */
-function commandMessage(name, text) {
-  return {
-    id: randomUUID(),
-    role: 'user',
-    content: [{ type: 'text', text }],
-    source: { kind: 'command-file', name },
-  };
-}
-
 /**
- * Mount the command-file registry for this profile.
- * @param ctx - host context; the `commands` service is required.
+ * Mount the command-file skill provider for this profile.
+ * @param ctx - host context; the `skills` service is required.
  * @param [config] - row config from the bundle patch.
  */
 export function apply(ctx, config = {}) {
@@ -256,7 +202,7 @@ export function apply(ctx, config = {}) {
     ? rowConfig.configPath
     : join(PACKAGE_DIR, 'config.json');
 
-  /** mtime-cached `config.json`, so an edit applies to the next scan/invocation. */
+  /** mtime-cached `config.json`, so an edit applies to the next read. */
   let userCache = { mtimeMs: -1, value: null };
   const userConfig = () => {
     try {
@@ -319,9 +265,9 @@ export function apply(ctx, config = {}) {
     const taken = new Set();
     for (const root of resolveDirs(options)) {
       for (const file of listMarkdown(root)) {
-        const name = toCommandName(file.stem);
+        const name = toSkillName(file.stem);
         if (name === undefined) {
-          log(`skip file=${file.path} reason=invalid-command-name`);
+          log(`skip file=${file.path} reason=invalid-skill-name`);
           continue;
         }
         if (taken.has(name)) {
@@ -330,13 +276,14 @@ export function apply(ctx, config = {}) {
         }
         const loaded = readCommandFile(file.path, maxBytes);
         if (loaded.text === undefined) {
-          log(`skip file=${file.path} reason=unreadable`);
+          log(`skip file=${file.path} reason=${loaded.missing === true ? 'missing' : loaded.oversized === true ? 'oversized' : 'unreadable'}`);
           continue;
         }
         taken.add(name);
         found.push({
           name,
           path: file.path,
+          directory: dirname(file.path),
           description: deriveDescription(loaded.text, fallbackDescription(name), maxLength),
         });
       }
@@ -344,231 +291,65 @@ export function apply(ctx, config = {}) {
     return found;
   };
 
-  /** Live command set, shared by the command handlers and the gesture listener. */
-  let current = new Map();
-  /** Registered commands: name -> { path, description, dispose }. */
-  const registered = new Map();
-  /** sessionId -> Map<messageId, { name, at }> for injections that are still pending. */
-  const pending = new Map();
-
-  const pendingOf = (sessionId) => {
-    let entries = pending.get(sessionId);
-    if (entries === undefined) {
-      entries = new Map();
-      pending.set(sessionId, entries);
-    }
-    return entries;
-  };
-
-  /** Every message still waiting in the agent's inbox. */
-  const inboxMessages = (agent) => [
-    ...(agent.inbox?.nextStep ?? []),
-    ...(agent.inbox?.nextTurn ?? []),
-  ];
-
-  /** Newest visible command-file user message, for a post-send withdrawal. */
-  const newestInjectedMessage = (agent) => {
-    const session = agent.session;
-    if (session === undefined) return undefined;
-    const visible = new Set(session.surface?.nodes ?? []);
-    for (let index = session.seq - 1; index >= 0; index -= 1) {
-      const event = session.eventAt(index);
-      if (event === undefined || event.type !== 'user/message' || !visible.has(event.seq)) continue;
-      const source = event.data?.source;
-      if (source?.kind !== 'command-file' || typeof source.name !== 'string') continue;
-      return { seq: event.seq, name: source.name };
-    }
-    return undefined;
-  };
-
-  /**
-   * Withdraw the most recent injection. While it is still pending in the inbox,
-   * removing it leaves nothing model-visible in the log, so the conversation is
-   * untouched. Once a turn claimed it, shadow the committed node with a surface
-   * replacement: later requests stop carrying the body while the raw log keeps
-   * the original record. The human transcript is built from append-origin events,
-   * so that second path is a model-side withdrawal, not a visual deletion.
-   */
-  const withdraw = ({ agent }) => {
-    const { messages } = resolveSettings();
-    const sessionId = agent.session?.id ?? 'unknown';
-    const entries = pendingOf(sessionId);
-    const inbox = inboxMessages(agent);
-    for (const [id, entry] of [...entries].reverse()) {
-      if (!inbox.some(message => message?.id === id)) {
-        entries.delete(id);
-        continue;
-      }
-      if (agent.inbox?.remove?.(id) === true) {
-        entries.delete(id);
-        log(`withdraw path=pending name=/${entry.name} id=${id}`);
-        return { kind: 'success', text: messages.withdrawnPending(entry.name) };
-      }
-    }
-    const target = newestInjectedMessage(agent);
-    if (target === undefined) return { kind: 'error', text: messages.withdrawNone() };
-    agent.session.append('user/message', {
-      id: randomUUID(),
-      role: 'user',
-      content: [{ type: 'text', text: messages.withdrawnMarker(target.name) }],
-      source: { kind: 'command-withdrawn', name: target.name },
-    }, {
-      surfaceOp: { op: 'replace', startSeq: target.seq, endSeq: target.seq },
-      sourceEventSeqs: [target.seq],
-    });
-    log(`withdraw path=sent name=/${target.name} seq=${target.seq}`);
-    return { kind: 'success', text: messages.withdrawnSent(target.name) };
-  };
-
-  const disposeAll = () => {
-    for (const entry of registered.values()) {
-      try {
-        entry.dispose();
-      } catch (error) {
-        log(`dispose-failed name=/${entry.name ?? '?'} detail=${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-    registered.clear();
-  };
-
-  /**
-   * Load one command body and render it for injection.
-   * @returns `{ text, entry, chars, messages }` on success, `{ error }` when the
-   *   file is missing, empty, oversized, or unreadable.
-   */
-  const prepare = (name, rawInput) => {
-    // Reconcile first: a config edit or a file added while the menu was open
-    // must apply to this very invocation, not only to the next watcher event.
-    try {
-      sync();
-    } catch (error) {
-      log(`invoke-rescan-failed detail=${error instanceof Error ? error.message : String(error)}`);
-    }
-    const entry = current.get(name);
-    const { options, messages } = resolveSettings();
-    if (entry === undefined) return { error: messages.missing(name) };
-    const loaded = readCommandFile(entry.path, options.maxBytes);
-    if (loaded.text === undefined) {
-      if (loaded.missing === true) return { error: messages.missing(name) };
-      if (loaded.oversized === true) return { error: messages.tooLarge(name, options.maxBytes) };
-      if (loaded.empty === true) return { error: messages.empty(name) };
-      return { error: messages.unreadable(name, loaded.error) };
-    }
-    const rendered = options.wrap === false
-      ? stripFrontmatter(loaded.text)
-      : renderBlock(name, entry.path, stripFrontmatter(loaded.text));
-    const extra = typeof rawInput === 'string' ? rawInput.trim() : '';
-    return {
-      entry,
-      text: extra === '' ? rendered : `${rendered}\n\n${extra}`,
-      chars: loaded.text.length,
-      messages,
-      /** `false` queues the body for the user's next prompt; `true` starts a turn now. */
-      immediate: options.immediate === true,
-    };
-  };
-
-  /** Reconcile the registered command set with the scanned files. */
-  const sync = () => {
-    const { options } = resolveSettings();
-    if (options.enabled === false) {
-      disposeAll();
-      current = new Map();
-      return;
-    }
-    const entries = discover(options);
-    const next = new Map(entries.map(entry => [entry.name, entry]));
-
-    for (const [name, previous] of [...registered]) {
-      const entry = next.get(name);
-      if (entry !== undefined && entry.path === previous.path && entry.description === previous.description) continue;
-      previous.dispose();
-      registered.delete(name);
-    }
-
-    for (const [name, entry] of next) {
-      if (registered.has(name)) continue;
-      try {
-        const dispose = ctx.commands.register({
-          name,
-          description: entry.description,
-          handler: ({ agent, rawInput }) => {
-            const invocation = prepare(name, rawInput);
-            if (invocation.error !== undefined) return { kind: 'error', text: invocation.error };
-            const message = commandMessage(name, invocation.text);
-            const sessionId = agent.session?.id ?? 'unknown';
-            // Queue by default: `inject` adds model-facing context without waking
-            // the driver, so the body rides along with the next prompt the user
-            // sends and they can keep typing first. `immediate` sends it now.
-            if (invocation.immediate) {
-              agent.followup(message);
-            } else {
-              // A repeated command replaces its earlier pending copy instead of
-              // stacking two bodies into the same step.
-              for (const [id, entry] of [...pendingOf(sessionId)]) {
-                if (entry.name !== name) continue;
-                if (agent.inbox?.remove?.(id) === true) pendingOf(sessionId).delete(id);
-              }
-              agent.inject(message);
-              pendingOf(sessionId).set(message.id, { name, at: Date.now() });
-            }
-            log(`inject path=menu name=/${name} mode=${invocation.immediate ? 'send' : 'queue'} file=${entry.path} chars=${invocation.chars} extra=${String(rawInput ?? '').trim().length}`);
-            return {
-              kind: 'success',
-              text: invocation.immediate
-                ? invocation.messages.loaded(name, invocation.chars)
-                : invocation.messages.queued(name, invocation.chars),
-            };
-          },
-        });
-        registered.set(name, { name, path: entry.path, description: entry.description, dispose });
-      } catch (error) {
-        log(`register-failed name=/${name} detail=${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-
-    current = next;
-    ensureWatchers(resolveDirs(options));
-    log(`scan dirs=${resolveDirs(options).join(';')} commands=${[...next.keys()].map(name => `/${name}`).join(',') || '(none)'}`);
-  };
-
-  /**
-   * A `/name <extra>` line that the composer did not claim — or a `/name`
-   * mention inside a longer prompt — reaches the model as ordinary user text.
-   * Append the same rendered body as injected instructions for that step.
-   */
-  ctx.on('agent/pre-step', async ({ messages: batch, signal }, next) => {
-    const decision = await next();
-    if (decision.kind === 'reject') return decision;
-    if (signal?.aborted === true) return decision;
-    const names = [];
-    for (const message of batch) {
-      if (message?.source?.kind !== 'user') continue;
-      for (const block of message.content ?? []) {
-        if (block?.type !== 'text') continue;
-        for (const match of String(block.text).matchAll(GESTURE)) {
-          const name = match[2];
-          if (name !== undefined && !names.includes(name)) names.push(name);
-        }
-      }
-    }
-    if (names.length === 0) return decision;
-    const { options, messages } = resolveSettings();
-    const injections = [];
-    for (const name of names) {
-      if (!current.has(name)) continue;
-      const invocation = prepare(name, '');
-      if (invocation.error !== undefined) continue;
-      injections.push(commandMessage(name, invocation.text));
-      log(`inject path=gesture name=/${name} file=${invocation.entry.path} chars=${invocation.chars}`);
-    }
-    if (injections.length === 0) return decision;
-    return { ...decision, messages: [...decision.messages, ...injections] };
-  });
-
-  /** Host watchers, one per nearest existing directory. */
+  /** The provider's current invalidation handle, replaced on every registration. */
+  let invalidateCatalog = () => {};
+  /** Directories currently watched, keyed by absolute path. */
   const watchers = new Map();
   let timer;
+  /** Last scan result, for the debug log and for `get()`'s missing-file message. */
+  let current = new Map();
+
+  /**
+   * Provider candidates: user-invocable only. `modelInvocable: false` is what
+   * keeps this out of the model's skill catalog — the model never learns these
+   * commands exist until the user's own message carries the gesture.
+   */
+  const provider = {
+    name: PROVIDER,
+    async list() {
+      const { options } = resolveSettings();
+      if (options.enabled === false) return [];
+      const entries = discover(options);
+      current = new Map(entries.map(entry => [entry.name, entry]));
+      return entries.map(entry => ({
+        name: entry.name,
+        description: entry.description,
+        invocation: { modelInvocable: false, userInvocable: true },
+        source: PROVIDER,
+        provider: PROVIDER,
+        rank: RANK,
+        path: entry.path,
+        locator: { path: entry.path, directory: entry.directory },
+        resourceBase: { kind: 'directory', path: entry.directory },
+      }));
+    },
+    async get(candidate) {
+      const { options } = resolveSettings();
+      if (options.enabled === false) return undefined;
+      const locator = candidate.locator ?? {};
+      const path = typeof locator.path === 'string' ? locator.path : undefined;
+      if (path === undefined) return undefined;
+      const loaded = readCommandFile(path, options.maxBytes);
+      if (loaded.text === undefined) {
+        log(`load-failed name=/${candidate.name} file=${path} reason=${loaded.missing === true ? 'missing' : loaded.oversized === true ? 'oversized' : 'unreadable'}`);
+        return undefined;
+      }
+      log(`load name=/${candidate.name} file=${path} chars=${loaded.text.length}`);
+      return {
+        name: candidate.name,
+        description: candidate.description,
+        invocation: { modelInvocable: false, userInvocable: true },
+        source: PROVIDER,
+        provider: PROVIDER,
+        path,
+        resourceBase: {
+          kind: 'directory',
+          path: typeof locator.directory === 'string' ? locator.directory : dirname(path),
+        },
+        content: stripFrontmatter(loaded.text),
+      };
+    },
+  };
 
   const nearestExisting = (path) => {
     let candidate = resolve(path);
@@ -610,15 +391,20 @@ export function apply(ctx, config = {}) {
     timer = setTimeout(() => {
       timer = undefined;
       try {
-        sync();
+        // Let the registry drop its cached catalog; the next `/` menu read and
+        // the next printed step both discover from the live files.
+        invalidateCatalog();
+        log('invalidate reason=watch');
+        ensureWatchers(resolveDirs(resolveSettings().options));
       } catch (error) {
-        log(`scan-failed detail=${error instanceof Error ? error.message : String(error)}`);
+        log(`invalidate-failed detail=${error instanceof Error ? error.message : String(error)}`);
       }
     }, 150);
     timer.unref?.();
   };
 
   const ensureWatchers = (dirs) => {
+    if (resolveSettings().options.watch === false) return;
     for (const dir of dirs) {
       for (const target of watchTargets(dir)) {
         if (watchers.has(target)) continue;
@@ -641,30 +427,17 @@ export function apply(ctx, config = {}) {
     }
   };
 
-  sync();
-
-  // The withdrawal command is a built-in, not a file: it must not be shadowed by
-  // the scan, so it registers after the file commands.
-  const undoName = (() => {
-    const configured = resolveSettings().options.undoCommand;
-    return typeof configured === 'string' ? configured.trim() : '';
-  })();
-  if (undoName !== '') {
-    if (!COMMAND_NAME.test(undoName)) {
-      log(`undo-register-skipped name=/${undoName} reason=invalid-command-name`);
-    } else {
+  ctx.effect(() => ctx.skills.registerProvider((control) => {
+    invalidateCatalog = () => {
       try {
-        ctx.commands.register({
-          name: undoName,
-          description: resolveSettings().messages.undoDescription,
-          handler: withdraw,
-        });
-        log(`undo-command name=/${undoName}`);
+        control.invalidate();
       } catch (error) {
-        log(`undo-register-failed name=/${undoName} detail=${error instanceof Error ? error.message : String(error)}`);
+        log(`invalidate-threw detail=${error instanceof Error ? error.message : String(error)}`);
       }
-    }
-  }
+    };
+    ensureWatchers(resolveDirs(resolveSettings().options));
+    return provider;
+  }), 'dsh-command-files: skill provider and watchers');
 
   ctx.effect(() => () => {
     if (timer !== undefined) clearTimeout(timer);
@@ -677,10 +450,17 @@ export function apply(ctx, config = {}) {
       }
     }
     watchers.clear();
-    disposeAll();
     current = new Map();
-  }, 'dsh-command-files: close watchers and unregister commands');
+  }, 'dsh-command-files: close watchers');
 
-  const initial = resolveSettings();
-  log(`ready dirs=${resolveDirs(initial.options).join(';')} commands=${[...current.keys()].map(name => `/${name}`).join(',') || '(none)'} config=${configPath} node=${process.version}`);
+  // One discovery at load time: proves the provider is wired and leaves a
+  // readable trace of what the `/` menu will offer.
+  try {
+    const { options } = resolveSettings();
+    const entries = options.enabled === false ? [] : discover(options);
+    current = new Map(entries.map(entry => [entry.name, entry]));
+    log(`ready dirs=${resolveDirs(options).join(';')} skills=${entries.map(entry => `/${entry.name}`).join(',') || '(none)'} config=${configPath} node=${process.version}`);
+  } catch (error) {
+    log(`ready-failed detail=${error instanceof Error ? error.message : String(error)}`);
+  }
 }
