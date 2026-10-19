@@ -16,6 +16,8 @@
     "wrap": true,
     "_immediate": "false（默认）只入队，正文随你的下一条消息一起发出，期间可以继续补要求；true 表示命令一执行就立刻开新一轮。",
     "immediate": false,
+    "_undoCommand": "撤回命令名。发送前执行：把挂起的注入从 inbox 移除（对话里不留痕迹）；已经发送后执行：从模型上下文里 shadow 掉（对话记录仍保留）。留空则不注册。",
+    "undoCommand": "uninject",
     "_locale": "'zh' 或 'en'，决定命令结果提示的语言。",
     "locale": "zh",
     "_debug": "debugLog 会把每次扫描与注入记到 %TEMP%\\dsh-command-files.log。",

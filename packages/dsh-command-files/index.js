@@ -52,6 +52,8 @@ const DEFAULTS = {
   wrap: true,
   /** `false` queues the body for the next prompt; `true` sends it as a new turn. */
   immediate: false,
+  /** Slash command that withdraws the last injection; empty registers none. */
+  undoCommand: 'uninject',
   locale: 'zh',
   debugLog: true,
 };
@@ -60,7 +62,12 @@ const DEFAULTS = {
 const BUILTIN_MESSAGES = {
   zh: {
     loaded: (name, chars) => `已注入 /${name}（${chars} 字）。`,
-    queued: (name, chars) => `已注入 /${name}（${chars} 字），会随你下一条消息一起发出；现在可以继续补充要求。`,
+    queued: (name, chars) => `已注入 /${name}（${chars} 字），会随你下一条消息一起发出；发送前可用 /uninject 撤回。`,
+    withdrawnPending: name => `已撤回 /${name}（还没发送，对话里不会留下内容）。`,
+    withdrawnSent: name => `已从模型上下文撤回 /${name}；原始内容仍保留在对话记录里（日志只增不删），后续请求不再包含它。`,
+    withdrawNone: () => '没有可撤回的注入。',
+    withdrawnMarker: name => `[已撤回 /${name}]`,
+    undoDescription: '撤回上一次 /命令注入（发送前移除；已发送则从模型上下文撤回）',
     empty: name => `/${name} 对应的 Markdown 文件是空的。`,
     missing: name => `/${name} 对应的 Markdown 文件已不存在。`,
     tooLarge: (name, limit) => `/${name} 的文件超过 ${limit} 字节上限，未注入。`,
@@ -69,7 +76,12 @@ const BUILTIN_MESSAGES = {
   },
   en: {
     loaded: (name, chars) => `Injected /${name} (${chars} chars)`,
-    queued: (name, chars) => `Injected /${name} (${chars} chars); it will be sent with your next message, so you can keep typing.`,
+    queued: (name, chars) => `Injected /${name} (${chars} chars); it will be sent with your next message. Use /uninject before sending to withdraw it.`,
+    withdrawnPending: name => `Withdrew /${name} (not sent yet, so nothing is left in the conversation).`,
+    withdrawnSent: name => `Withdrew /${name} from the model context; the original stays in the conversation log (append-only) and later requests no longer include it.`,
+    withdrawNone: () => 'There is no injection to withdraw.',
+    withdrawnMarker: name => `[withdrawn /${name}]`,
+    undoDescription: 'Withdraw the last slash-command injection (remove it before sending, or shadow it from the model context)',
     empty: name => `The Markdown file for /${name} is empty.`,
     missing: name => `The Markdown file for /${name} no longer exists.`,
     tooLarge: (name, limit) => `The file for /${name} exceeds ${limit} bytes and was not injected.`,
@@ -336,6 +348,77 @@ export function apply(ctx, config = {}) {
   let current = new Map();
   /** Registered commands: name -> { path, description, dispose }. */
   const registered = new Map();
+  /** sessionId -> Map<messageId, { name, at }> for injections that are still pending. */
+  const pending = new Map();
+
+  const pendingOf = (sessionId) => {
+    let entries = pending.get(sessionId);
+    if (entries === undefined) {
+      entries = new Map();
+      pending.set(sessionId, entries);
+    }
+    return entries;
+  };
+
+  /** Every message still waiting in the agent's inbox. */
+  const inboxMessages = (agent) => [
+    ...(agent.inbox?.nextStep ?? []),
+    ...(agent.inbox?.nextTurn ?? []),
+  ];
+
+  /** Newest visible command-file user message, for a post-send withdrawal. */
+  const newestInjectedMessage = (agent) => {
+    const session = agent.session;
+    if (session === undefined) return undefined;
+    const visible = new Set(session.surface?.nodes ?? []);
+    for (let index = session.seq - 1; index >= 0; index -= 1) {
+      const event = session.eventAt(index);
+      if (event === undefined || event.type !== 'user/message' || !visible.has(event.seq)) continue;
+      const source = event.data?.source;
+      if (source?.kind !== 'command-file' || typeof source.name !== 'string') continue;
+      return { seq: event.seq, name: source.name };
+    }
+    return undefined;
+  };
+
+  /**
+   * Withdraw the most recent injection. While it is still pending in the inbox,
+   * removing it leaves nothing model-visible in the log, so the conversation is
+   * untouched. Once a turn claimed it, shadow the committed node with a surface
+   * replacement: later requests stop carrying the body while the raw log keeps
+   * the original record. The human transcript is built from append-origin events,
+   * so that second path is a model-side withdrawal, not a visual deletion.
+   */
+  const withdraw = ({ agent }) => {
+    const { messages } = resolveSettings();
+    const sessionId = agent.session?.id ?? 'unknown';
+    const entries = pendingOf(sessionId);
+    const inbox = inboxMessages(agent);
+    for (const [id, entry] of [...entries].reverse()) {
+      if (!inbox.some(message => message?.id === id)) {
+        entries.delete(id);
+        continue;
+      }
+      if (agent.inbox?.remove?.(id) === true) {
+        entries.delete(id);
+        log(`withdraw path=pending name=/${entry.name} id=${id}`);
+        return { kind: 'success', text: messages.withdrawnPending(entry.name) };
+      }
+    }
+    const target = newestInjectedMessage(agent);
+    if (target === undefined) return { kind: 'error', text: messages.withdrawNone() };
+    agent.session.append('user/message', {
+      id: randomUUID(),
+      role: 'user',
+      content: [{ type: 'text', text: messages.withdrawnMarker(target.name) }],
+      source: { kind: 'command-withdrawn', name: target.name },
+    }, {
+      surfaceOp: { op: 'replace', startSeq: target.seq, endSeq: target.seq },
+      sourceEventSeqs: [target.seq],
+    });
+    log(`withdraw path=sent name=/${target.name} seq=${target.seq}`);
+    return { kind: 'success', text: messages.withdrawnSent(target.name) };
+  };
 
   const disposeAll = () => {
     for (const entry of registered.values()) {
@@ -413,11 +496,22 @@ export function apply(ctx, config = {}) {
             const invocation = prepare(name, rawInput);
             if (invocation.error !== undefined) return { kind: 'error', text: invocation.error };
             const message = commandMessage(name, invocation.text);
+            const sessionId = agent.session?.id ?? 'unknown';
             // Queue by default: `inject` adds model-facing context without waking
             // the driver, so the body rides along with the next prompt the user
             // sends and they can keep typing first. `immediate` sends it now.
-            if (invocation.immediate) agent.followup(message);
-            else agent.inject(message);
+            if (invocation.immediate) {
+              agent.followup(message);
+            } else {
+              // A repeated command replaces its earlier pending copy instead of
+              // stacking two bodies into the same step.
+              for (const [id, entry] of [...pendingOf(sessionId)]) {
+                if (entry.name !== name) continue;
+                if (agent.inbox?.remove?.(id) === true) pendingOf(sessionId).delete(id);
+              }
+              agent.inject(message);
+              pendingOf(sessionId).set(message.id, { name, at: Date.now() });
+            }
             log(`inject path=menu name=/${name} mode=${invocation.immediate ? 'send' : 'queue'} file=${entry.path} chars=${invocation.chars} extra=${String(rawInput ?? '').trim().length}`);
             return {
               kind: 'success',
@@ -548,6 +642,29 @@ export function apply(ctx, config = {}) {
   };
 
   sync();
+
+  // The withdrawal command is a built-in, not a file: it must not be shadowed by
+  // the scan, so it registers after the file commands.
+  const undoName = (() => {
+    const configured = resolveSettings().options.undoCommand;
+    return typeof configured === 'string' ? configured.trim() : '';
+  })();
+  if (undoName !== '') {
+    if (!COMMAND_NAME.test(undoName)) {
+      log(`undo-register-skipped name=/${undoName} reason=invalid-command-name`);
+    } else {
+      try {
+        ctx.commands.register({
+          name: undoName,
+          description: resolveSettings().messages.undoDescription,
+          handler: withdraw,
+        });
+        log(`undo-command name=/${undoName}`);
+      } catch (error) {
+        log(`undo-register-failed name=/${undoName} detail=${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
 
   ctx.effect(() => () => {
     if (timer !== undefined) clearTimeout(timer);

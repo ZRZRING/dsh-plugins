@@ -50,6 +50,19 @@
 - 想让它一执行就立刻开新一轮（不需要再打字），把 `immediate` 设为 `true`。
 - `/` 菜单里能看到每个命令，描述取自文件第一行（`# 标题` 会去掉 `#`），所以第一行写成一句人能看懂的话最合适。
 
+### 撤回
+
+`/uninject`（名字由 `undoCommand` 配置）按状态做两件事：
+
+| 状态 | 行为 | 结果 |
+|---|---|---|
+| 注入还在 inbox 里（还没发送） | `agent.inbox.remove(id)` | 直接消失，日志里只多一条 log-only 的 inbox splice，**不会产生 `user/message`** |
+| 已经随消息发出（本轮已 claim） | 追加一条 surface `replace`，把那条 `user/message` 从模型可见面上 shadow 掉 | 后续请求不再包含它；原始记录仍在日志里（审计/可恢复）；对话记录里仍看得到原文 |
+
+重复执行同名命令会先撤掉上一条挂起的注入再挂新的，不会叠两份。
+
+第二种情况是“模型侧撤回”而不是“对话里删掉”：DSH 的 session log 是 append-only，`user/message` 一旦落地就无法物理删除；要连对话记录一起消失只能 fork 回退（在注入前的 seq 分叉一个新 session），本插件未实现。
+
 ### 文件写法
 
 没有任何格式要求。建议：
@@ -82,6 +95,7 @@
 | `descriptionMaxLength` | `120` | 菜单描述长度上限 |
 | `wrap` | `true` | 是否用 `<command_content>` 包裹正文 |
 | `immediate` | `false` | `false` 只入队（随下一条消息发出，期间可继续输入）；`true` 立即开新一轮 |
+| `undoCommand` | `uninject` | 撤回命令名；留空不注册 |
 | `locale` | `zh` | 命令结果提示语言 |
 | `debugLog` | `true` | 写 `%TEMP%\dsh-command-files.log` |
 

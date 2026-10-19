@@ -29,6 +29,10 @@
         # false queues the body for your next prompt (keep typing first);
         # true sends it immediately as a new turn.
         immediate: false
+        # Built-in withdrawal command. Before sending it removes the pending
+        # injection from the inbox; after sending it shadows the committed node
+        # from the model context. Empty registers no command.
+        undoCommand: uninject
         # Result text language: 'zh' or 'en'.
         locale: zh
         # Append one diagnostic line per scan/injection to
