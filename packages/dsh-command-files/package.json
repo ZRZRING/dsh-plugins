@@ -1,0 +1,38 @@
+{
+  "name": "@local/dsh-command-files",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Markdown files under ~/.agents/commands become explicit slash commands that inject their full text into the user prompt.",
+  "engines": {
+    "dsh": ">=0.2.1-rc.1 <0.3.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZRZRING/dsh-plugins.git",
+    "directory": "packages/dsh-command-files"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "dsh-bundle",
+    "slash-command",
+    "prompt",
+    "markdown"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./config.json": "./config.json"
+  },
+  "files": [
+    "index.js",
+    "config.json",
+    "README.md",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

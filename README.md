@@ -5,6 +5,7 @@ ZRZRING 的 DeepSeek Harness 插件仓库，同时自托管一个 DSH 插件市�
 | | |
 |---|---|
 | 组合包 | [`packages/dsh-desktop-notifications`](packages/dsh-desktop-notifications) — 任务完成/失败/等待确认时弹 Windows 系统通知 |
+| 组合包 | [`packages/dsh-command-files`](packages/dsh-command-files) — 把 `~/.agents/commands/*.md` 变成只主动调用的斜杠命令，调用时注入全文 |
 | 市场索引 | [market/index.json](market/index.json) |
 | 索引直链 | `https://zrzring.github.io/dsh-plugins/market/index.json` |
 
