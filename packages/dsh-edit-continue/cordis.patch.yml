@@ -5,5 +5,5 @@
 # runtime configuration to tune.
 - insert:
     - id: edit-continue
-      name: '@local/dsh-edit-continue'
+      name: '@zrzring/dsh-edit-continue'
       config: {}

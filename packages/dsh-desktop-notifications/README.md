@@ -2,7 +2,7 @@
 
 任务**完成**、**失败**或**等待你确认**时，弹一条系统通知（可单独开提示音）。
 
-安装方式：`plugin_manager install_bundle` 指向本目录，已装进 `desktop` profile（bundle `@local/dsh-desktop-notifications`）。
+安装方式：`plugin_manager install_bundle` 指向本目录，已装进 `desktop` profile（bundle `@zrzring/dsh-desktop-notifications`）。
 
 ## 改文案 / 改开关 → 只改 `config.json`
 

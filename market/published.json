@@ -1,5 +1,6 @@
 {
-  "$comment": "发布账本：\"包名@版本\": Unix 秒。这个时间只是市场的声明（索引未签名），用于排序与展示；每次发版补一行，缺失时 --check 会失败。",
-  "@local/dsh-desktop-notifications@1.0.6": 1792348200,
-  "@local/dsh-edit-continue@1.0.0": 1792420351
+  "$comment": "发布账本：\"包名@版本\": Unix 秒。每次发版补一行，缺失时 npm run check 会失败。",
+  "@zrzring/dsh-desktop-notifications@0.0.1": 1792513436,
+  "@zrzring/dsh-edit-continue@0.0.1": 1792513436,
+  "@zrzring/dsh-command-files@0.0.1": 1792513436
 }

@@ -1,4 +1,4 @@
-# @local/dsh-command-files
+# @zrzring/dsh-command-files
 
 把 `~/.agents/commands/` 里的 Markdown 文件变成 `/` 菜单里可以直接点、也可以自己敲的斜杠命令。
 
@@ -33,13 +33,13 @@
 ```json
 {
   "dependencies": {
-    "@local/dsh-command-files": "link:D:/path/to/dsh-plugins/packages/dsh-command-files"
+    "@zrzring/dsh-command-files": "link:D:/path/to/dsh-plugins/packages/dsh-command-files"
   },
   "dsh": {
     "profile": {
       "bundles": [
         "@deepseek-ai/dsh-base",
-        "@local/dsh-command-files"
+        "@zrzring/dsh-command-files"
       ]
     }
   }

@@ -6,7 +6,7 @@
 # which is re-read on every trigger (no reinstall, no restart).
 - insert:
     - id: desktop-notifications
-      name: '@local/dsh-desktop-notifications'
+      name: '@zrzring/dsh-desktop-notifications'
       config:
         # 'always' notifies on every trigger; 'off' silences the plugin.
         mode: always

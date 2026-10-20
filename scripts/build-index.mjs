@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * 由 market.config.json + packages/&lt;pkg&gt;/package.json 生成 DSH 插件市场索引（格式 1）。
+ * 由 market/config.json + packages/&lt;pkg&gt;/package.json 生成 DSH 插件市场索引（格式 1）。
  *
- *   node market/build-index.mjs           生成 market/index.json
- *   node market/build-index.mjs --pin     把 git 来源的 "commit": "HEAD" 固化成当前 HEAD
- *   node market/build-index.mjs --check   CI：校验，并确认 index.json 与当前配置一致
+ *   node scripts/build-index.mjs           生成 market/index.json
+ *   node scripts/build-index.mjs --pin     把 git 来源的 "commit": "HEAD" 固化成当前 HEAD
+ *   node scripts/build-index.mjs --check   CI：校验，并确认 index.json 与当前配置一致
  *
  * git 来源必须钉死 40 位 commit，所以发版顺序是：
  *   1. 改插件 → commit（这个 commit 里就有新代码）
- *   2. npm run pin   ← 把上面的 commit 写进 market.config.json
+ *   2. npm run pin   ← 把上面的 commit 写进 market/config.json
  *   3. npm run build → 提交 config + index.json
  *
  * 能解析到 @deepseek-ai/dsh-plugin-market-index 时用 DSH 官方校验器做最终把关。
@@ -18,12 +18,12 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
 
-const root = dirname(fileURLToPath(import.meta.url))
+const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const argv = process.argv.slice(2)
 const wantCheck = argv.includes('--check')
 const wantPin = argv.includes('--pin')
 const outFlag = argv.indexOf('--out')
-const outPath = resolve(root, outFlag === -1 ? 'index.json' : argv[outFlag + 1])
+const outPath = resolve(root, outFlag === -1 ? 'market/index.json' : argv[outFlag + 1])
 const now = Math.floor(Date.now() / 1000)
 
 if (wantCheck && wantPin) {
@@ -32,9 +32,9 @@ if (wantCheck && wantPin) {
 }
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'))
-const configPath = join(root, 'market.config.json')
+const configPath = join(root, 'market', 'config.json')
 const config = readJson(configPath)
-const published = readJson(join(root, 'published.json'))
+const published = readJson(join(root, 'market', 'published.json'))
 const problems = []
 const warnings = []
 
@@ -55,9 +55,9 @@ function compareVersions(a, b) {
   return bp.join('.').localeCompare(ap.join('.'))
 }
 
-/** 插件目录相对本文件解析；git 检查用绝对路径，git 自己会归一化。 */
+/** 插件目录相对 market/ 解析（与配置里 "../packages/<name>" 的写法一致）；git 检查用绝对路径，git 自己会归一化。 */
 function packageDir(plugin) {
-  return resolve(root, plugin.dir)
+  return resolve(root, 'market', plugin.dir)
 }
 
 function loadPackage(plugin) {

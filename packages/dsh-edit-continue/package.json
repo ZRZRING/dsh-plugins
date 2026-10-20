@@ -1,13 +1,15 @@
 {
-  "name": "@local/dsh-edit-continue",
-  "version": "1.0.0",
-  "private": true,
+  "name": "@zrzring/dsh-edit-continue",
+  "version": "0.0.1",
   "type": "module",
   "description": "Edit a sent prompt and resend it in a new branch, plus a triangle Continue button that resumes a stopped or truncated turn.",
   "engines": {
     "dsh": ">=0.2.1-rc.1 <0.3.0"
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ZRZRING/dsh-plugins.git",

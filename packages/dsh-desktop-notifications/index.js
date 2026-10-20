@@ -374,7 +374,7 @@ export function apply(ctx, config = {}) {
   }, { global: true, prepend: true });
 
   const initial = resolve();
-  log(`ready build=1.0.6 mode=${initial.options.mode} sound=${initial.options.sound} locale=${initial.options.locale} debugEvents=${initial.options.debugEvents === true} config=${configPath} node=${process.version}`);
+  log(`ready build=0.0.1 mode=${initial.options.mode} sound=${initial.options.sound} locale=${initial.options.locale} debugEvents=${initial.options.debugEvents === true} config=${configPath} node=${process.version}`);
   if (initial.options.announceOnStart === true) {
     show('startup', 'plugin', initial.messages.readyTitle, format(initial.messages.readyBody, '', ''));
   }

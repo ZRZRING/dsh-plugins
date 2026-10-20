@@ -1,5 +1,5 @@
 {
-  "$comment": "市场索引的唯一事实来源。改插件元数据、加插件、发版后跑 `npm run pin`（首次或插件变动时）再跑 `npm run build`。",
+  "$comment": "市场索引的唯一事实来源。dir 相对本文件解析；npm 来源改完跑 `npm run build`，git 来源还要先跑 `npm run pin` 把 commit 钉死。",
   "index": {
     "url": "https://zrzring.github.io/dsh-plugins/market/index.json",
     "title": {
@@ -92,10 +92,7 @@
         "stars": 0
       },
       "source": {
-        "type": "git",
-        "url": "https://github.com/ZRZRING/dsh-plugins",
-        "commit": "cb5b745146c22846e5733379910ab312bb32d897",
-        "path": "packages/dsh-desktop-notifications"
+        "type": "npm"
       }
     },
     {
@@ -128,10 +125,38 @@
         "stars": 0
       },
       "source": {
-        "type": "git",
+        "type": "npm"
+      }
+    },
+    {
+      "dir": "../packages/dsh-command-files",
+      "title": {
+        "en": "Command files",
+        "zh": "命令文件"
+      },
+      "description": {
+        "en": "Markdown files under ~/.agents/commands become slash commands in the menu. Picking one only inserts its text; the body is injected into that step as skill content when you send, and deleting the command cancels it.",
+        "zh": "把 `~/.agents/commands/` 里的 Markdown 文件变成 `/` 菜单里的斜杠命令。选中只插入文字，发送时才把正文作为 skill 内容注入这一步；删掉命令即撤回。"
+      },
+      "author": "zrzring",
+      "homepage": "https://github.com/ZRZRING/dsh-plugins/tree/main/packages/dsh-command-files#readme",
+      "repository": {
         "url": "https://github.com/ZRZRING/dsh-plugins",
-        "commit": "95c14619277cf449ac2576ccfd978b4984557ed3",
-        "path": "packages/dsh-edit-continue"
+        "directory": "packages/dsh-command-files"
+      },
+      "category": "tools",
+      "keywords": [
+        "slash-command",
+        "prompt",
+        "markdown",
+        "skill"
+      ],
+      "labels": [],
+      "sortKeys": {
+        "stars": 0
+      },
+      "source": {
+        "type": "npm"
       }
     }
   ]

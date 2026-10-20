@@ -12,7 +12,7 @@
 # reinstall, no restart).
 - insert:
     - id: command-files
-      name: '@local/dsh-command-files'
+      name: '@zrzring/dsh-command-files'
       config:
         # false hides every command without unloading the plugin.
         enabled: true

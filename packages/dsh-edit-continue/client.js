@@ -22,7 +22,7 @@
  * the platform React instance.
  */
 window.__ModuleLoader__.load({
-  id: '@local/dsh-edit-continue',
+  id: '@zrzring/dsh-edit-continue',
   factory(require) {
     const React = require('react')
     const h = React.createElement
@@ -111,7 +111,7 @@ window.__ModuleLoader__.load({
 
     function installStyles() {
       const tag = document.createElement('style')
-      tag.setAttribute('data-plugin', '@local/dsh-edit-continue')
+      tag.setAttribute('data-plugin', '@zrzring/dsh-edit-continue')
       tag.textContent = STYLES
       document.head.appendChild(tag)
       return () => { tag.remove() }
